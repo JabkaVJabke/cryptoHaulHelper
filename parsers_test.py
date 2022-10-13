@@ -27,15 +27,14 @@ def create_drivers(drivers_count: int):
     return results
 
 
-drivers = create_drivers(4)
+drivers = create_drivers(2)
 whitebit_parser = parsers.WhitebitParser(drivers[0])
 binance_parser = parsers.BinanceParser(drivers[1])
 
 try:
-    print(whitebit_parser.get_exchange_rate_on_whitebit("USDT", "UAH"))
-    # print(binance_parser.get_sell_offers('PrivatBank'))
+    # print(whitebit_parser.get_exchange_rate_on_whitebit("USDT", "UAH"))
+    print(len(binance_parser.get_sell_offers('PrivatBank')))
 finally:
-    input('Press any key to stop')
     for driver in drivers:
         driver.quit()
 

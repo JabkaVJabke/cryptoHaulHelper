@@ -49,6 +49,11 @@ class BinanceParser:
         page_url = f"https://p2p.binance.com/ru-UA/trade/sell/USDT?fiat=UAH&payment={bank_name}"
         if self.__driver.current_url != page_url:
             self.__driver.get(page_url)
+        items_path = "//div[@class=\'css-cjwhpx\']/div[@class=\'css-1mf6m87\']/div[@class=\'css-ovjtyv\']"
+        elements = find_elements_with_waiting(self.__driver, 10, items_path)
+        offers = [None] * len(elements)
+        for i in range(len(elements)):
+            price = float(elements[i].find_element("xpath", "/div/div/div/div/div[@class=\'css-1m1f8hn\']").text)
+            available = float(str(elements[i].find_element("class", "css-vurnku").text).split(" ")[0])
 
-        items_path = "//div[@class=\'css-1mf6m87\']/div"
-        return find_elements_with_waiting(self.__driver, 10, items_path)
+        return offers
