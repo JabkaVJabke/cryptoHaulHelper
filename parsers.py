@@ -1,7 +1,13 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.webdriver import WebDriver
 import selenium.webdriver.support.expected_conditions as EC
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.wait import WebDriverWait
+import re
+
+
+def clear_float_value_from_text(text: str):
+    return "".join(str(x) for x in re.findall("[0123456789.]", text))
 
 
 def find_elements_with_waiting(web_driver: WebDriver, wait_time: int, xpath: str):
@@ -39,21 +45,49 @@ class Offer:
         self.limit_min = limit_min
         self.limit_max = limit_max
 
+    def __str__(self):
+        return " ".join(str(x) for x in
+                  ["Price:", self.price,
+                  "Available:", self.available,
+                  "Limit min:", self.limit_min,
+                  "Limit max:", self.limit_max])
+
 
 class BinanceParser:
 
     def __init__(self, web_driver: WebDriver):
         self.__driver = web_driver
 
-    def get_sell_offers(self, bank_name: str):
-        page_url = f"https://p2p.binance.com/ru-UA/trade/sell/USDT?fiat=UAH&payment={bank_name}"
+    def __get_offer_from_web_element(self, offer_element: WebElement):
+        self.__driver.execute_script("arguments[0].scrollIntoView();", offer_element)
+
+        price_e = offer_element.find_element("xpath", ".//div[@class=\'css-1kj0ifu\']/div[@class=\'css-1m1f8hn\']")
+        price = float(clear_float_value_from_text(price_e.text))
+
+        available_e = offer_element.find_element("xpath", ".//div[@class=\'css-3v2ep2\']/div[@class=\'css-vurnku\']")
+        available = float(clear_float_value_from_text(available_e.text))
+
+        limit_es = offer_element.find_elements("xpath", ".//div[@class=\'css-4cffwv\']")
+        limit_min = float(clear_float_value_from_text(limit_es[0].text))
+        limit_max = float(clear_float_value_from_text(limit_es[1].text))
+        return Offer(price, available, limit_min, limit_max)
+
+    def __get_offers(self, binance_page_url: str):
+        page_url = binance_page_url
         if self.__driver.current_url != page_url:
             self.__driver.get(page_url)
-        items_path = "//div[@class=\'css-cjwhpx\']/div[@class=\'css-1mf6m87\']/div[@class=\'css-ovjtyv\']"
-        elements = find_elements_with_waiting(self.__driver, 10, items_path)
-        offers = [None] * len(elements)
-        for i in range(len(elements)):
-            price = float(elements[i].find_element("xpath", "/div/div/div/div/div[@class=\'css-1m1f8hn\']").text)
-            available = float(str(elements[i].find_element("class", "css-vurnku").text).split(" ")[0])
 
+        items_path = "//div[@class=\'css-cjwhpx\']/div[@class=\'css-1mf6m87\']/div[@class=\'css-ovjtyv\']"
+        offer_web_elements = find_elements_with_waiting(self.__driver, 10, items_path)
+        offers = []
+        for offer_web_element in offer_web_elements:
+            offers.append(self.__get_offer_from_web_element(offer_web_element))
         return offers
+
+    def get_sell_offers(self, from_currency, to_currency, bank_name):
+        return self.__get_offers(
+            f"https://p2p.binance.com/ru-UA/trade/sell/{from_currency}?fiat={to_currency}&payment={bank_name}")
+
+    def get_buy_offers(self, from_currency, to_currency, bank_name):
+        return self.__get_offers(
+            f"https://p2p.binance.com/en/trade/{bank_name}/{from_currency}?fiat={to_currency}")
